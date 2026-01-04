@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ALISA - Agrarian Land Information Service Assistant</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Playfair+Display:wght@600;700&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#3E7D48", // ATR/BPN Green Tone
+              "primary-dark": "#2E5E36",
+              "primary-light": "#E8F5E9",
+              "surface-light": "#F9F8F6",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"],
+              "serif": ["Playfair Display", "serif"],
+              "body": ["Noto Sans", "sans-serif"],
+            },
+            boxShadow: {
+                'glow': '0 0 20px rgba(62, 125, 72, 0.2)',
+                'tool': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
+            },
+            animation: {
+                'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+            },
+            keyframes: {
+                fadeInUp: {
+                    '0%': { opacity: '0', transform: 'translateY(20px)' },
+                    '100%': { opacity: '1', transform: 'translateY(0)' },
+                }
+            }
+          },
+        },
+      }
+    </script>
+<style>
+  .video-container {
+    position: fixed; /* Mengunci posisi di layar */
+    bottom: 0;       /* Menempel ke bawah */
+    left: 50%;       /* Ke tengah horizontal */
+    transform: translateX(-50%); /* Penyesuaian agar tepat di tengah */
+    z-index: 5;      /* Di atas background gambar, di bawah teks */
+    width: 100%;     /* Mengikuti lebar layar */
+    height: 95vh;    /* Tinggi 80% dari layar agar tidak menutupi header */
+    display: flex;
+    justify-content: center;
+    align-items: flex-end; /* Video menempel ke bawah */
+    pointer-events: none;  /* Agar tidak menghalangi klik pada tombol */
+}
+
+#avatar-video {
+    width: auto;     /* Biarkan lebar otomatis */
+    height: 100%;    /* Tinggi maksimal sesuai container */
+    object-fit: contain; /* PENTING: Agar video tidak terpotong (zoom out) */
+    mix-blend-mode: screen; /* Menghilangkan background hitam */
+    opacity: 1;      /* Sesuaikan jika ingin agak transparan */
+}
+
+/* Pastikan area chat tetap terlihat jelas */
+main {
+    position: relative;
+    z-index: 20; 
+}
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }.glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .glass-bubble-ai {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(62, 125, 72, 0.15);
+            box-shadow: 0 4px 20px rgba(62, 125, 72, 0.05);
+        }
+        .glass-input {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(62, 125, 72, 0.2);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+        }
+        .glass-column {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+            border-right: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(62, 125, 72, 0.3); border-radius: 20px; }
+        
+        .glass-bubble-ai h3 {
+    color: #3E7D48; /* Warna hijau khas ATR/BPN */
+    font-family: 'Playfair Display', serif;
+}
+.glass-bubble-ai strong {
+    color: #1a1a1a;
+    font-weight: 700;
+}
+    </style>
+</head>
+<body class="bg-[#F5F4F0] text-stone-800 font-display overflow-hidden h-screen flex flex-col relative">
+  <div class="absolute inset-0 z-0">...</div>
+
+    <div class="video-container">
+        <video id="avatar-video" autoplay muted playsinline>
+            <source id="video-source" src="menyapa.mp4" type="video/mp4">
+        </video>
+    </div>
+
+</div>
+<div class="absolute inset-0 z-0">
+<div class="absolute inset-0 w-full h-full bg-[#F5F4F0]">
+<img alt="Ceres AI Character" class="w-full h-full object-cover object-center opacity-80 mix-blend-multiply" src="Hijau Bawah.png"/>
+</div>
+<div class="absolute inset-0 bg-gradient-to-r from-[#F5F4F0]/90 via-[#F5F4F0]/30 to-[#F5F4F0]/90"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-[#F5F4F0] via-transparent to-[#F5F4F0]/60"></div>
+</div>
+<header class="flex-none flex items-center justify-between px-8 py-5 z-20 relative border-b border-stone-200/50 bg-gradient-to-b from-white/80 to-transparent">
+<div class="flex items-center gap-4">
+<div class="size-12 drop-shadow-md">
+<img alt="ATR/BPN Logo" class="w-full h-full object-contain" src="Logo.png"/>
+</div>
+<div>
+<h2 class="text-stone-800 text-xl font-bold leading-none tracking-tight font-serif">ALISA</h2>
+<p class="text-[10px] text-primary/90 font-medium tracking-[0.1em] uppercase mt-1">Agrarian Land Information Service Assistant</p>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex items-center gap-8 text-sm font-medium">
+<a class="text-stone-600 hover:text-primary transition-colors" href="Home.html">Home</a>
+<a class="text-stone-600 hover:text-primary transition-colors" href="#" onclick="openLogin()">Upload</a>
+</nav>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3">
+<span class="flex h-2 w-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
+<span class="text-xs font-semibold text-stone-700 tracking-wide uppercase">ALISA ONLINE</span>
+</div>
+</div>
+</header>
+<main class="flex-1 flex overflow-hidden relative z-10 w-full justify-center">
+<div class="flex-1 flex flex-col min-w-0 w-full md:w-4/5 lg:w-1/2 max-w-5xl h-full">
+<div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 flex flex-col gap-8">
+<div class="text-center py-4 mb-4 mt-auto md:mt-10">
+
+</div>
+<div class="h-2"></div>
+</div>
+<div class="flex-none p-6 md:p-8 pt-2 z-10">
+<div class="relative group max-w-3xl mx-auto w-full">
+<div class="absolute inset-0 bg-primary/10 rounded-2xl blur-xl transition-opacity opacity-0 group-hover:opacity-100"></div>
+<div class="relative flex items-end gap-2 glass-input rounded-2xl p-2 focus-within:border-primary/40 transition-all shadow-lg">
+<button class="p-3 rounded-xl hover:bg-stone-100 text-stone-400 hover:text-primary transition-colors self-end">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<textarea class="w-full bg-transparent border-none focus:ring-0 p-3 text-stone-800 placeholder-stone-400 text-base resize-none h-[52px] max-h-32" placeholder="Tanya ALISA..."></textarea>
+<div class="flex items-center gap-1 self-end pb-1 pr-1">
+<button class="p-2 rounded-xl hover:bg-stone-100 text-stone-400 hover:text-primary transition-colors" title="Voice Input">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<button class="flex items-center justify-center size-10 rounded-xl bg-primary hover:bg-primary-dark text-white shadow-md hover:shadow-lg transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]">arrow_upward</span>
+</button>
+</div>
+</div>
+</div>
+<p class="text-center text-[10px] text-stone-400 mt-4 font-medium tracking-wide drop-shadow-sm">© 2025 Agrarian Land Information Service Assistant.</p>
+</div>
+</div>
+</main>
+
+</body>
+<script>
+  // 1. Inisialisasi Variabel & Session ID
+  const sessionId = "user_" + Math.random().toString(36).substring(7);
+  const webhookUrl = 'https://alisa-n8n.duckdns.org/webhook/chat-alisa';
+  
+  const chatContainer = document.querySelector('.custom-scrollbar');
+  const textarea = document.querySelector('textarea');
+  const sendButton = document.querySelector('button.bg-primary');
+  // Menghubungkan variabel micButton ke tombol dengan title "Voice Input"
+  const micButton = document.querySelector('button[title="Voice Input"]');
+
+function addMessage(text, isAi = false) {
+    const welcomeScreen = document.querySelector('.text-center.py-4');
+    if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = isAi 
+      ? 'flex flex-col gap-3 glass-bubble-ai p-5 rounded-2xl max-w-[85%] self-start animate-fade-in-up' 
+      : 'flex flex-col gap-2 bg-primary text-white p-4 rounded-2xl max-w-[80%] self-end shadow-lg';
+    
+    if (isAi) {
+        // 1. FORMATTING VISUAL: Mengubah teks Markdown menjadi HTML rapi
+        let formattedText = text
+            .replace(/^### (.*$)/gim, '<h3 class="text-primary font-bold text-base mt-2 mb-1 border-b border-primary/10">$1</h3>') // Heading 3
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>') // Bold
+            .replace(/^\d+\.\s(.*$)/gim, '<div class="flex gap-2 ml-1"><span>$&</span></div>') // Penomoran
+            .replace(/^\-\s(.*$)/gim, '<div class="flex gap-2 ml-3 text-stone-600"><span class="text-primary">•</span><span>$1</span></div>'); // Bullet points
+
+        msgDiv.innerHTML = `<div class="text-sm leading-relaxed space-y-1">${formattedText}</div>`;
+        
+        // 2. CLEANING UNTUK SUARA: Hapus semua simbol agar TTS enak didengar
+        const voiceText = text.replace(/[*#_-]/g, '').trim();
+        const utterance = new SpeechSynthesisUtterance(voiceText);
+        utterance.lang = 'id-ID';
+
+        utterance.onstart = () => changeAvatar('menjawab.mp4', true);
+        utterance.onend = () => changeAvatar('diam.mp4', true);
+
+        window.speechSynthesis.speak(utterance);
+    } else {
+        msgDiv.innerHTML = `<p class="text-sm">${text}</p>`;
+    }
+
+    chatContainer.appendChild(msgDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+  // 3. Logika Speech to Text (Mikrofon)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition;
+  let isListening = false;
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      textarea.value = transcript;
+      stopListening();
+      sendMessage(); // Otomatis kirim setelah bicara
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech Error:", event.error);
+      stopListening();
+    };
+
+    recognition.onend = () => stopListening();
+  }
+
+  function toggleListening() {
+    if (!recognition) {
+      alert("Browser Anda tidak mendukung fitur suara.");
+      return;
+    }
+    isListening ? stopListening() : startListening();
+  }
+
+  function startListening() {
+    isListening = true;
+    recognition.start();
+    micButton.classList.add('text-red-500', 'animate-pulse');
+    textarea.placeholder = "Mendengarkan...";
+  }
+
+  function stopListening() {
+    isListening = false;
+    recognition.stop();
+    micButton.classList.remove('text-red-500', 'animate-pulse');
+    textarea.placeholder = "Tanya ALISA...";
+  }
+const avatarVideo = document.getElementById('avatar-video');
+const videoSource = document.getElementById('video-source');
+
+// Fungsi Inti untuk mengganti video
+function changeAvatar(fileName, loop = true) {
+    // Hanya ganti jika filenya berbeda agar tidak flickering
+    if (!videoSource.src.includes(fileName)) {
+        videoSource.src = fileName;
+        avatarVideo.load();
+        avatarVideo.loop = loop;
+        avatarVideo.play();
+    }
+}
+
+// OTOMATIS: Balik ke 'diam.mp4' setelah video menyapa atau menjawab selesai
+async function sendMessage() {
+    const message = textarea.value.trim();
+    if (!message) return;
+
+    // Tampilkan pesan user di layar
+    addMessage(message, false);
+    textarea.value = '';
+    textarea.style.height = '52px';
+
+    // Avatar diam/menunggu saat sedang proses kirim
+    changeAvatar('diam.mp4', true);
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chatInput: message,
+          sessionId: sessionId 
+        }),
+      });
+
+      const data = await response.json();
+        
+      const aiResponse = data.output || data.text || "Maaf, ALISA sedang gangguan.";
+      addMessage(aiResponse, true);
+
+    } catch (error) {
+      console.error("Error:", error);
+      addMessage("Gagal terhubung ke server.", true);
+      changeAvatar('diam.mp4', true);
+    }
+  }
+
+  // 5. Event Listeners
+  sendButton.addEventListener('click', sendMessage);
+  micButton.addEventListener('click', toggleListening); // Mengaktifkan tombol mic
+  
+  textarea.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  // Aksi saat halaman pertama kali dibuka
+  window.onload = () => {
+    // 1. Jalankan video menyapa (loop = false agar tidak mengulang terus)
+    changeAvatar('menyapa.mp4', false);
+    
+    // 2. Deteksi kapan video menyapa selesai
+    avatarVideo.onended = () => {
+      const currentFile = videoSource.src;
+      // Hanya pindah ke diam jika yang berakhir adalah video menyapa
+      if (currentFile.includes('menyapa.mp4')) {
+        console.log("Menyapa selesai, beralih ke standby.");
+        changeAvatar('diam.mp4', true);
+      }
+    };
+  };
+</script></html>
+
+<div id="loginOverlay"
+  class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50">
+
+  <div class="w-full max-w-md rounded-2xl bg-[#F1F3F2] shadow-2xl overflow-hidden animate-fade-in-up">
+
+    <!-- Header -->
+    <div class="text-center py-8 bg-[#E9ECEB]">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-white flex items-center justify-center shadow">
+        <span class="material-symbols-outlined text-primary text-3xl">lock</span>
+      </div>
+      <h2 class="text-xl font-bold text-gray-800">Login Admin</h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Login terlebih dahulu jika ingin upload data
+      </p>
+    </div>
+
+    <!-- Form -->
+    <div class="px-8 py-6 space-y-4">
+
+      <!-- NIP -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">
+          NOMOR INDUK PEGAWAI
+        </label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            badge
+          </span>
+          <input id="loginNip" type="text"
+            placeholder="19850101 201001 1 001"
+            class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:ring-2 focus:ring-primary/40 focus:outline-none">
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1">
+          PASSWORD
+        </label>
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            key
+          </span>
+          <input id="loginPassword" type="password"
+            placeholder="••••••••"
+            class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-700 focus:ring-2 focus:ring-primary/40 focus:outline-none">
+        </div>
+      </div>
+
+      <!-- Remember + Forgot -->
+      <div class="flex items-center justify-between text-sm">
+        <label class="flex items-center gap-2 text-gray-600">
+          <input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary">
+          Remember me
+        </label>
+        <a href="#" class="text-primary hover:underline">Lupa Password?</a>
+      </div>
+
+      <!-- Button -->
+      <button onclick="loginAdmin()"
+        class="w-full mt-4 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary-dark transition flex items-center justify-center gap-2">
+        Login
+        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+      </button>
+
+      <!-- Footer -->
+      <div class="text-center mt-4">
+        <button onclick="closeLogin()"
+          class="text-xs text-gray-500 hover:underline">
+          Return to Home
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script>
+function openLogin() {
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+}
+
+function closeLogin() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+}
+
+function loginAdmin() {
+  const nip = document.getElementById('loginNip').value;
+  const pass = document.getElementById('loginPassword').value;
+
+  if (!nip || !pass) {
+    alert("NIP dan Password wajib diisi");
+    return;
+  }
+
+  // dummy auth
+  if (nip === "admin" && pass === "1234") {
+    window.location.href = "upload.html";
+  } else {
+    alert("Login gagal");
+  }
+}
+</script>
