@@ -291,6 +291,7 @@ function changeAvatar(fileName, loop = true) {
 
 // OTOMATIS: Balik ke 'diam.mp4' setelah video menyapa atau menjawab selesai
 async function sendMessage() {
+window.speechSynthesis.cancel();
     const message = textarea.value.trim();
     if (!message) return;
 
@@ -456,5 +457,6 @@ function loginAdmin() {
 }
 
 </script>
+
 
 
