@@ -201,18 +201,23 @@ function addMessage(text, isAi = false) {
       ? 'flex flex-col gap-3 glass-bubble-ai p-5 rounded-2xl max-w-[85%] self-start animate-fade-in-up' 
       : 'flex flex-col gap-2 bg-primary text-white p-4 rounded-2xl max-w-[80%] self-end shadow-lg';
     
-    if (isAi) {
-        // 1. FORMATTING VISUAL: Mengubah teks Markdown menjadi HTML rapi
+   if (isAi) {
+        // 1. FORMATTING VISUAL: Tetap biarkan HTML agar gambar muncul
         let formattedText = text
-            .replace(/^### (.*$)/gim, '<h3 class="text-primary font-bold text-base mt-2 mb-1 border-b border-primary/10">$1</h3>') // Heading 3
-            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>') // Bold
-            .replace(/^\d+\.\s(.*$)/gim, '<div class="flex gap-2 ml-1"><span>$&</span></div>') // Penomoran
-            .replace(/^\-\s(.*$)/gim, '<div class="flex gap-2 ml-3 text-stone-600"><span class="text-primary">•</span><span>$1</span></div>'); // Bullet points
+            .replace(/^### (.*$)/gim, '<h3 class="text-primary font-bold text-base mt-2 mb-1 border-b border-primary/10">$1</h3>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>')
+            .replace(/^\d+\.\s(.*$)/gim, '<div class="flex gap-2 ml-1"><span>$&</span></div>')
+            .replace(/^\-\s(.*$)/gim, '<div class="flex gap-2 ml-3 text-stone-600"><span class="text-primary">•</span><span>$1</span></div>');
 
         msgDiv.innerHTML = `<div class="text-sm leading-relaxed space-y-1">${formattedText}</div>`;
         
-        // 2. CLEANING UNTUK SUARA: Hapus semua simbol agar TTS enak didengar
-        const voiceText = text.replace(/[*#_-]/g, '').trim();
+        // 2. CLEANING UNTUK SUARA: Hapus tag HTML <...> agar tidak dibacakan kodenya
+        // Tambahkan .replace(/<[^>]*>/g, '') untuk menghapus kode gambar dari suara
+        const voiceText = text.replace(/<[^>]*>/g, '').replace(/[*#_-]/g, '').trim();
+        
+        // Hentikan suara lama sebelum memulai yang baru
+        window.speechSynthesis.cancel();
+
         const utterance = new SpeechSynthesisUtterance(voiceText);
         utterance.lang = 'id-ID';
 
@@ -227,6 +232,7 @@ function addMessage(text, isAi = false) {
     chatContainer.appendChild(msgDiv);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
+
 
   // 3. Logika Speech to Text (Mikrofon)
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -457,6 +463,7 @@ function loginAdmin() {
 }
 
 </script>
+
 
 
 
