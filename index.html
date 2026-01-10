@@ -207,6 +207,9 @@ function addMessage(text, isAi = false) {
             .replace(/^### (.*$)/gim, '<h3 class="text-primary font-bold text-base mt-2 mb-1 border-b border-primary/10">$1</h3>')
             .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>')
             .replace(/^\d+\.\s(.*$)/gim, '<div class="flex gap-2 ml-1"><span>$&</span></div>')
+            .replace(/^\-\s(.*$)/gim, '<div class="flex gap-2 ml-3 text-stone-600"><span class="text-primary">•</span><span>$1</span></div>')
+            .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-600 underline font-bold break-all hover:text-blue-800">$1</a>')
+            .replace(/^\d+\.\s(.*$)/gim, '<div class="flex gap-2 ml-1"><span>$&</span></div>')
             .replace(/^\-\s(.*$)/gim, '<div class="flex gap-2 ml-3 text-stone-600"><span class="text-primary">•</span><span>$1</span></div>');
 
         msgDiv.innerHTML = `<div class="text-sm leading-relaxed space-y-1">${formattedText}</div>`;
@@ -463,6 +466,7 @@ function loginAdmin() {
 }
 
 </script>
+
 
 
 
