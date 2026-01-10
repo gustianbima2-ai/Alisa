@@ -297,7 +297,7 @@ function changeAvatar(fileName, loop = true) {
 
 // OTOMATIS: Balik ke 'diam.mp4' setelah video menyapa atau menjawab selesai
 async function sendMessage() {
-window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel();
     const message = textarea.value.trim();
     if (!message) return;
 
@@ -309,45 +309,56 @@ window.speechSynthesis.cancel();
     // Avatar diam/menunggu saat sedang proses kirim
     changeAvatar('diam.mp4', true);
 
-   try {
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          chatInput: message,
-          sessionId: sessionId 
-        }),
-      });
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                chatInput: message,
+                sessionId: sessionId 
+            }),
+        });
 
-      // 1. Ambil respon sebagai teks terlebih dahulu (Sangat Penting!)
-      const responseText = await response.text();
-      console.log("Raw Response dari n8n:", responseText);
+        // 1. Ambil respon sebagai teks terlebih dahulu
+        const responseText = await response.text();
+        console.log("Raw Response dari n8n:", responseText);
 
-      // 2. Cek apakah responnya kosong
-      if (!responseText || responseText.trim() === "") {
-          throw new Error("Respon kosong dari server n8n");
-      }
+        // 2. Cek apakah responnya kosong
+        if (!responseText || responseText.trim() === "") {
+            throw new Error("Respon kosong dari server n8n");
+        }
 
-      let data;
-      try {
-          // 3. Coba ubah teks menjadi objek JSON
-          data = JSON.parse(responseText);
-      } catch (e) {
-          // Jika n8n mengirim teks biasa (bukan JSON), bungkus menjadi objek
-          data = { output: responseText };
-      }
+        let data;
+        try {
+            // 3. Coba ubah teks menjadi objek JSON
+            data = JSON.parse(responseText);
+        } catch (e) {
+            // Jika n8n mengirim teks biasa (bukan JSON), bungkus menjadi objek
+            data = { output: responseText };
+        }
+            
+        // 4. Ambil pesan dari property 'output'
+        const aiResponse = data.output || data.text || "Maaf, ALISA sedang gangguan.";
         
-      // 4. Ambil pesan dari property 'output' (sesuai setting JSON di n8n Anda)
-      const aiResponse = data.output || data.text || "Maaf, ALISA sedang gangguan.";
-      
-      addMessage(aiResponse, true);
+        addMessage(aiResponse, true);
 
     } catch (error) {
-      console.error("Error Detail:", error);
-      addMessage("Gagal terhubung ke server atau respon tidak valid.", true);
-      changeAvatar('diam.mp4', true);
+        console.error("Error Detail:", error);
+        addMessage("Gagal terhubung ke server atau respon tidak valid.", true);
+        changeAvatar('diam.mp4', true);
     }
+} // 
 
+// 5. Event Listeners (Pastikan berada di LUAR fungsi sendMessage)
+sendButton.addEventListener('click', sendMessage);
+micButton.addEventListener('click', toggleListening);
+
+textarea.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
   // 5. Event Listeners
   sendButton.addEventListener('click', sendMessage);
   micButton.addEventListener('click', toggleListening); // Mengaktifkan tombol mic
@@ -480,6 +491,7 @@ function loginAdmin() {
 }
 
 </script>
+
 
 
 
