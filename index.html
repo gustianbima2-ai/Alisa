@@ -182,17 +182,57 @@ main {
 
 </body>
 <script>
-  // 1. Inisialisasi Variabel & Session ID
+  // 1. Inisialisasi
   const sessionId = "user_" + Math.random().toString(36).substring(7);
   const webhookUrl = 'https://alisa-n8n.duckdns.org/webhook/chat-alisa';
   
   const chatContainer = document.querySelector('.custom-scrollbar');
   const textarea = document.querySelector('textarea');
   const sendButton = document.querySelector('button.bg-primary');
-  // Menghubungkan variabel micButton ke tombol dengan title "Voice Input"
   const micButton = document.querySelector('button[title="Voice Input"]');
+  const avatarVideo = document.getElementById('avatar-video');
+  const videoSource = document.getElementById('video-source');
 
-function addMessage(text, isAi = false) {
+  // 2. Fungsi Kirim Pesan
+  async function sendMessage() {
+    window.speechSynthesis.cancel();
+    const message = textarea.value.trim();
+    if (!message) return;
+
+    addMessage(message, false);
+    textarea.value = '';
+    textarea.style.height = '52px';
+    changeAvatar('diam.mp4', true);
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatInput: message, sessionId: sessionId }),
+      });
+
+      const responseText = await response.text();
+      if (!responseText || responseText.trim() === "") throw new Error("Respon kosong");
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        data = { output: responseText };
+      }
+        
+      const aiResponse = data.output || data.text || "Maaf, ALISA sedang gangguan.";
+      addMessage(aiResponse, true);
+
+    } catch (error) {
+      console.error("Error Detail:", error);
+      addMessage("Gagal terhubung ke server. Pastikan n8n sudah ACTIVE.", true);
+      changeAvatar('diam.mp4', true);
+    }
+  }
+
+  // 3. Fungsi UI (Tambah Pesan & Ganti Avatar)
+  function addMessage(text, isAi = false) {
     const welcomeScreen = document.querySelector('.text-center.py-4');
     if (welcomeScreen) welcomeScreen.style.display = 'none';
 
@@ -201,187 +241,52 @@ function addMessage(text, isAi = false) {
       ? 'flex flex-col gap-3 glass-bubble-ai p-5 rounded-2xl max-w-[85%] self-start animate-fade-in-up' 
       : 'flex flex-col gap-2 bg-primary text-white p-4 rounded-2xl max-w-[80%] self-end shadow-lg';
     
-   if (isAi) {
-        // 1. FORMATTING VISUAL: Tetap biarkan HTML agar gambar muncul
-        let formattedText = text
-            .replace(/^### (.*$)/gim, '<h3 class="text-primary font-bold text-base mt-2 mb-1 border-b border-primary/10">$1</h3>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>')
-            .replace(/^\d+\.\s(.*$)/gim, '<div class="flex gap-2 ml-1"><span>$&</span></div>')
-            .replace(/^\-\s(.*$)/gim, '<div class="flex gap-2 ml-3 text-stone-600"><span class="text-primary">•</span><span>$1</span></div>');
+    if (isAi) {
+      let formattedText = text
+        .replace(/^### (.*$)/gim, '<h3 class="text-primary font-bold text-base mt-2 mb-1 border-b border-primary/10">$1</h3>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-stone-900">$1</strong>')
+        .replace(/^\d+\.\s(.*$)/gim, '<div class="flex gap-2 ml-1"><span>$&</span></div>')
+        .replace(/^\-\s(.*$)/gim, '<div class="flex gap-2 ml-3 text-stone-600"><span class="text-primary">•</span><span>$1</span></div>');
 
-        msgDiv.innerHTML = `<div class="text-sm leading-relaxed space-y-1">${formattedText}</div>`;
-        
-        // 2. CLEANING UNTUK SUARA: Hapus tag HTML <...> agar tidak dibacakan kodenya
-        // Tambahkan .replace(/<[^>]*>/g, '') untuk menghapus kode gambar dari suara
-        const voiceText = text.replace(/<[^>]*>/g, '').replace(/[*#_-]/g, '').trim();
-        
-        // Hentikan suara lama sebelum memulai yang baru
-        window.speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(voiceText);
-        utterance.lang = 'id-ID';
-
-        utterance.onstart = () => changeAvatar('menjawab.mp4', true);
-        utterance.onend = () => changeAvatar('diam.mp4', true);
-
-        window.speechSynthesis.speak(utterance);
+      msgDiv.innerHTML = `<div class="text-sm leading-relaxed space-y-1">${formattedText}</div>`;
+      
+      const voiceText = text.replace(/<[^>]*>/g, '').replace(/[*#_-]/g, '').trim();
+      const utterance = new SpeechSynthesisUtterance(voiceText);
+      utterance.lang = 'id-ID';
+      utterance.onstart = () => changeAvatar('menjawab.mp4', true);
+      utterance.onend = () => changeAvatar('diam.mp4', true);
+      window.speechSynthesis.speak(utterance);
     } else {
-        msgDiv.innerHTML = `<p class="text-sm">${text}</p>`;
+      msgDiv.innerHTML = `<p class="text-sm">${text}</p>`;
     }
 
     chatContainer.appendChild(msgDiv);
     chatContainer.scrollTop = chatContainer.scrollHeight;
-}
-
-
-  // 3. Logika Speech to Text (Mikrofon)
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition;
-  let isListening = false;
-
-  if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
-    recognition.lang = 'id-ID';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      textarea.value = transcript;
-      stopListening();
-      sendMessage(); // Otomatis kirim setelah bicara
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech Error:", event.error);
-      stopListening();
-    };
-
-    recognition.onend = () => stopListening();
   }
 
-  function toggleListening() {
-    if (!recognition) {
-      alert("Browser Anda tidak mendukung fitur suara.");
-      return;
-    }
-    isListening ? stopListening() : startListening();
-  }
-
-  function startListening() {
-    isListening = true;
-    recognition.start();
-    micButton.classList.add('text-red-500', 'animate-pulse');
-    textarea.placeholder = "Mendengarkan...";
-  }
-
-  function stopListening() {
-    isListening = false;
-    recognition.stop();
-    micButton.classList.remove('text-red-500', 'animate-pulse');
-    textarea.placeholder = "Tanya ALISA...";
-  }
-const avatarVideo = document.getElementById('avatar-video');
-const videoSource = document.getElementById('video-source');
-
-// Fungsi Inti untuk mengganti video
-function changeAvatar(fileName, loop = true) {
-    // Hanya ganti jika filenya berbeda agar tidak flickering
+  function changeAvatar(fileName, loop = true) {
     if (!videoSource.src.includes(fileName)) {
-        videoSource.src = fileName;
-        avatarVideo.load();
-        avatarVideo.loop = loop;
-        avatarVideo.play();
+      videoSource.src = fileName;
+      avatarVideo.load();
+      avatarVideo.loop = loop;
+      avatarVideo.play();
     }
-}
+  }
 
-// OTOMATIS: Balik ke 'diam.mp4' setelah video menyapa atau menjawab selesai
-async function sendMessage() {
-    window.speechSynthesis.cancel();
-    const message = textarea.value.trim();
-    if (!message) return;
-
-    // Tampilkan pesan user di layar
-    addMessage(message, false);
-    textarea.value = '';
-    textarea.style.height = '52px';
-
-    // Avatar diam/menunggu saat sedang proses kirim
-    changeAvatar('diam.mp4', true);
-
-    try {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                chatInput: message,
-                sessionId: sessionId 
-            }),
-        });
-
-        // 1. Ambil respon sebagai teks terlebih dahulu
-        const responseText = await response.text();
-        console.log("Raw Response dari n8n:", responseText);
-
-        // 2. Cek apakah responnya kosong
-        if (!responseText || responseText.trim() === "") {
-            throw new Error("Respon kosong dari server n8n");
-        }
-
-        let data;
-        try {
-            // 3. Coba ubah teks menjadi objek JSON
-            data = JSON.parse(responseText);
-        } catch (e) {
-            // Jika n8n mengirim teks biasa (bukan JSON), bungkus menjadi objek
-            data = { output: responseText };
-        }
-            
-        // 4. Ambil pesan dari property 'output'
-        const aiResponse = data.output || data.text || "Maaf, ALISA sedang gangguan.";
-        
-        addMessage(aiResponse, true);
-
-    } catch (error) {
-        console.error("Error Detail:", error);
-        addMessage("Gagal terhubung ke server atau respon tidak valid.", true);
-        changeAvatar('diam.mp4', true);
-    }
-} // 
-
-// 5. Event Listeners (Pastikan berada di LUAR fungsi sendMessage)
-sendButton.addEventListener('click', sendMessage);
-micButton.addEventListener('click', toggleListening);
-
-textarea.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-});
-  // 5. Event Listeners
+  // 4. Event Listeners (Hanya SATU Set)
   sendButton.addEventListener('click', sendMessage);
-  micButton.addEventListener('click', toggleListening); // Mengaktifkan tombol mic
-  
-  textarea.addEventListener('keypress', (e) => {
+
+  textarea.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   });
-  // Aksi saat halaman pertama kali dibuka
+
   window.onload = () => {
-    // 1. Jalankan video menyapa (loop = false agar tidak mengulang terus)
     changeAvatar('menyapa.mp4', false);
-    
-    // 2. Deteksi kapan video menyapa selesai
     avatarVideo.onended = () => {
-      const currentFile = videoSource.src;
-      // Hanya pindah ke diam jika yang berakhir adalah video menyapa
-      if (currentFile.includes('menyapa.mp4')) {
-        console.log("Menyapa selesai, beralih ke standby.");
-        changeAvatar('diam.mp4', true);
-      }
+      if (videoSource.src.includes('menyapa.mp4')) changeAvatar('diam.mp4', true);
     };
   };
 </script></html>
@@ -491,6 +396,7 @@ function loginAdmin() {
 }
 
 </script>
+
 
 
 
