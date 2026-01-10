@@ -309,7 +309,7 @@ window.speechSynthesis.cancel();
     // Avatar diam/menunggu saat sedang proses kirim
     changeAvatar('diam.mp4', true);
 
-    try {
+   try {
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -319,17 +319,34 @@ window.speechSynthesis.cancel();
         }),
       });
 
-      const data = await response.json();
+      // 1. Ambil respon sebagai teks terlebih dahulu (Sangat Penting!)
+      const responseText = await response.text();
+      console.log("Raw Response dari n8n:", responseText);
+
+      // 2. Cek apakah responnya kosong
+      if (!responseText || responseText.trim() === "") {
+          throw new Error("Respon kosong dari server n8n");
+      }
+
+      let data;
+      try {
+          // 3. Coba ubah teks menjadi objek JSON
+          data = JSON.parse(responseText);
+      } catch (e) {
+          // Jika n8n mengirim teks biasa (bukan JSON), bungkus menjadi objek
+          data = { output: responseText };
+      }
         
+      // 4. Ambil pesan dari property 'output' (sesuai setting JSON di n8n Anda)
       const aiResponse = data.output || data.text || "Maaf, ALISA sedang gangguan.";
+      
       addMessage(aiResponse, true);
 
     } catch (error) {
-      console.error("Error:", error);
-      addMessage("Gagal terhubung ke server.", true);
+      console.error("Error Detail:", error);
+      addMessage("Gagal terhubung ke server atau respon tidak valid.", true);
       changeAvatar('diam.mp4', true);
     }
-  }
 
   // 5. Event Listeners
   sendButton.addEventListener('click', sendMessage);
@@ -463,6 +480,7 @@ function loginAdmin() {
 }
 
 </script>
+
 
 
 
