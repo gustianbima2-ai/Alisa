@@ -332,6 +332,7 @@ function hideLoading() {
 async function sendMessage() {
     const message = textarea.value.trim();
     if (!message && batchFiles.length === 0) return;
+    window.speechSynthesis.cancel(); // Hentikan suara yang sedang berjalan
 
     if (message) addMessage(message, false);
     textarea.value = '';
@@ -415,4 +416,5 @@ if (batchFiles.length > 0) {
     </script>
 </body>
 </html>
+
 
