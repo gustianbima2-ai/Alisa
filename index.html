@@ -181,8 +181,9 @@
     <script>
         // --- 1. Global Variables ---
         let batchFiles = [];
+        let loadingBubble = null;
         const sessionId = "user_" + Math.random().toString(36).substring(7);
-        const webhookUrl = 'https://alisa-n8n.duckdns.org/webhook-test/ALISA_2.0';
+        const webhookUrl = 'https://alisa-n8n.duckdns.org/webhook/ALISA_2.0';
 
         const chatContainer = document.getElementById('chat-container');
         const textarea = document.getElementById('chatInput');
@@ -214,33 +215,42 @@ function addMessage(text, isAi = false) {
     const welcomeScreen = document.getElementById('welcome-screen');
     if (welcomeScreen) welcomeScreen.style.display = 'none';
 
-    // 1. Buat wrapper untuk mengatur perataan (kiri atau kanan)
     const wrapper = document.createElement('div');
     wrapper.className = isAi ? 'flex justify-start w-full mb-4' : 'flex justify-end w-full mb-4';
 
     const msgDiv = document.createElement('div');
-    
+
     if (isAi) {
-        // ALISA (KIRI - Putih Transparan)
         msgDiv.className = 'flex flex-col gap-3 glass-bubble-ai p-5 rounded-2xl max-w-[85%] shadow-sm animate-fade-in-up';
+
+        // 1. Ubah **teks** menjadi <strong>
         let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+        // 2. Ubah URL menjadi link aktif
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        formattedText = formattedText.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline">$1</a>');
+
+        // 3. Ubah newline (\n) menjadi <br>
+        formattedText = formattedText.replace(/\n/g, '<br>');
+
         msgDiv.innerHTML = `<div class="text-sm leading-relaxed text-stone-800">${formattedText}</div>`;
-        
+
         // Voice AI
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g, ''));
+        const cleanText = text.replace(/\*\*/g, '').replace(/<[^>]*>/g, '');
+        const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'id-ID';
         utterance.onstart = () => changeAvatar('menjawab.mp4', true);
         utterance.onend = () => changeAvatar('diam.mp4', true);
         window.speechSynthesis.speak(utterance);
     } else {
-        // USER (KANAN - Hijau)
-        if (text.includes('<div')) { 
-            // Jika preview foto
+        // USER
+        if (text.includes('<div')) {
+            // Preview foto
             msgDiv.className = 'max-w-[80%] flex flex-col items-end';
             msgDiv.innerHTML = text;
         } else {
-            // Jika teks user biasa
+            // Teks biasa
             msgDiv.className = 'bg-primary text-white p-4 rounded-2xl max-w-[80%] shadow-lg';
             msgDiv.innerHTML = `<p class="text-sm font-medium">${text}</p>`;
         }
@@ -248,12 +258,7 @@ function addMessage(text, isAi = false) {
 
     wrapper.appendChild(msgDiv);
     chatContainer.appendChild(wrapper);
-    
-    // Scroll otomatis
-    chatContainer.scrollTo({
-        top: chatContainer.scrollHeight,
-        behavior: 'smooth'
-    });
+    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 }
         function changeAvatar(fileName, loop = true) {
             if (!videoSource.src.includes(fileName)) {
@@ -306,43 +311,67 @@ async function previewFiles(input, label) {
     }
     input.value = ""; 
 }
+function showLoading() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start w-full mb-4 loading-bubble';
+    wrapper.innerHTML = `<div class="glass-bubble-ai p-4 rounded-2xl flex items-center gap-2">
+        <span class="material-symbols-outlined animate-spin text-primary">progress_activity</span>
+        <span class="text-stone-600">ALISA sedang mengetik...</span>
+    </div>`;
+    chatContainer.appendChild(wrapper);
+    loadingBubble = wrapper;
+    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+}
 
-        async function sendMessage() {
-            const message = textarea.value.trim();
-            if (!message && batchFiles.length === 0) return;
+function hideLoading() {
+    if (loadingBubble) {
+        loadingBubble.remove();
+        loadingBubble = null;
+    }
+}
+async function sendMessage() {
+    const message = textarea.value.trim();
+    if (!message && batchFiles.length === 0) return;
 
-            if (message) addMessage(message, false);
-            textarea.value = ''; textarea.style.height = '52px';
-            changeAvatar('diam.mp4', true);
+    if (message) addMessage(message, false);
+    textarea.value = '';
+    textarea.style.height = '52px';
+    changeAvatar('diam.mp4', true);
 
-            try {
-                let response;
-                if (batchFiles.length > 0) {
-                    const formData = new FormData();
-                    let locTags = "";
-                    formData.append("sessionId", sessionId);
-                    
-                    batchFiles.forEach((item, i) => {
-                        formData.append(`file_${i}`, item.file);
-                        locTags += `[LOC: ${item.lat}, ${item.lng}] `;
-                    });
+    // Tampilkan loading
+    showLoading();
 
-                    formData.append("chatInput", `${message} ${locTags}`.trim());
-                    response = await fetch(webhookUrl, { method: 'POST', body: formData });
-                    batchFiles = [];
-                } else {
-                    response = await fetch(webhookUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chatInput: message, sessionId: sessionId }),
-                    });
-                }
-                const data = await response.json();
-                addMessage(data.output || data.text || "Pesan terkirim.", true);
-            } catch (error) {
-                addMessage("Koneksi gagal.", true);
-            }
+    try {
+        let response;
+        if (batchFiles.length > 0) {
+            const formData = new FormData();
+            let locTags = "";
+            formData.append("sessionId", sessionId);
+
+            batchFiles.forEach((item, i) => {
+                formData.append(`file_${i}`, item.file);
+                locTags += `[LOC: ${item.lat}, ${item.lng}] `;
+            });
+
+            formData.append("chatInput", `${message} ${locTags}`.trim());
+            response = await fetch(webhookUrl, { method: 'POST', body: formData });
+            batchFiles = [];
+        } else {
+            response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chatInput: message, sessionId: sessionId }),
+            });
         }
+        const data = await response.json();
+        addMessage(data.output || data.text || "Pesan terkirim.", true);
+    } catch (error) {
+        addMessage("Koneksi gagal.", true);
+    } finally {
+        // Sembunyikan loading
+        hideLoading();
+    }
+}
 
         // --- 4. Speech Recognition ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -381,6 +410,3 @@ async function previewFiles(input, label) {
     </script>
 </body>
 </html>
-
-
-
