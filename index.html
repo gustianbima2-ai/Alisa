@@ -343,20 +343,25 @@ async function sendMessage() {
 
     try {
         let response;
-        if (batchFiles.length > 0) {
-            const formData = new FormData();
-            let locTags = "";
-            formData.append("sessionId", sessionId);
+if (batchFiles.length > 0) {
+    const formData = new FormData();
+    let locTags = "";
+    formData.append("sessionId", sessionId);
 
-            batchFiles.forEach((item, i) => {
-                formData.append(`file_${i}`, item.file);
-                locTags += `[LOC: ${item.lat}, ${item.lng}] `;
-            });
+    batchFiles.forEach((item, i) => {
+        formData.append(`file_${i}`, item.file);
+        // Hanya tambahkan LOC jika labelnya mengandung "Batas" (bukan KTP)
+        if (item.label.includes("Batas")) {
+            locTags += `[LOC: ${item.lat}, ${item.lng}] `;
+        }
+    });
 
-            formData.append("chatInput", `${message} ${locTags}`.trim());
-            response = await fetch(webhookUrl, { method: 'POST', body: formData });
-            batchFiles = [];
-        } else {
+    // Gabungkan pesan teks dengan locTags (jika ada)
+    const finalChatInput = locTags ? `${message} ${locTags}`.trim() : message;
+    formData.append("chatInput", finalChatInput);
+    response = await fetch(webhookUrl, { method: 'POST', body: formData });
+    batchFiles = [];
+} else {
             response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -410,3 +415,4 @@ async function sendMessage() {
     </script>
 </body>
 </html>
+
