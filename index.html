@@ -309,8 +309,19 @@ async function previewFiles(input, label) {
         };
         reader.readAsDataURL(file);
     }
-    input.value = ""; 
+
+    // Tampilkan instruksi setelah upload
+    if (files.length > 0) {
+        if (label.includes("KTP")) {
+            addMessage("Jika sudah mengirim, silakan ketik **'KTP'** untuk mengirim.", true);
+        } else if (label.includes("Batas")) {
+            addMessage("Jika semua patok sudah di foto/upload, silakan ketik **'Patok'** untuk mengirim.", true);
+        }
+    }
+
+    input.value = "";
 }
+
 function showLoading() {
     const wrapper = document.createElement('div');
     wrapper.className = 'flex justify-start w-full mb-4 loading-bubble';
@@ -331,9 +342,25 @@ function hideLoading() {
 }
 async function sendMessage() {
     const message = textarea.value.trim();
+    
+    // Jika tidak ada pesan dan tidak ada file, return
     if (!message && batchFiles.length === 0) return;
-    window.speechSynthesis.cancel(); // Hentikan suara yang sedang berjalan
 
+    // Jika tidak ada pesan tapi ada file, beri instruksi
+    if (!message && batchFiles.length > 0) {
+        const firstFile = batchFiles[0];
+        if (firstFile.label.includes("KTP")) {
+            addMessage("Silakan ketik **'KTP'** untuk mengirim foto KTP.", true);
+        } else if (firstFile.label.includes("Batas")) {
+            addMessage("Silakan ketik **'Patok'** untuk mengirim foto patok.", true);
+        }
+        return;
+    }
+
+    // Hentikan suara yang sedang berjalan
+    window.speechSynthesis.cancel();
+
+    // Tampilkan pesan user
     if (message) addMessage(message, false);
     textarea.value = '';
     textarea.style.height = '52px';
@@ -344,25 +371,39 @@ async function sendMessage() {
 
     try {
         let response;
-if (batchFiles.length > 0) {
-    const formData = new FormData();
-    let locTags = "";
-    formData.append("sessionId", sessionId);
+        if (batchFiles.length > 0) {
+            // Tentukan keyword berdasarkan tipe file
+            let keyword = null;
+            if (batchFiles.some(item => item.label.includes("KTP"))) keyword = "ktp";
+            else if (batchFiles.some(item => item.label.includes("Batas"))) keyword = "patok";
 
-    batchFiles.forEach((item, i) => {
-        formData.append(`file_${i}`, item.file);
-        // Hanya tambahkan LOC jika labelnya mengandung "Batas" (bukan KTP)
-        if (item.label.includes("Batas")) {
-            locTags += `[LOC: ${item.lat}, ${item.lng}] `;
-        }
-    });
-
-    // Gabungkan pesan teks dengan locTags (jika ada)
-    const finalChatInput = locTags ? `${message} ${locTags}`.trim() : message;
-    formData.append("chatInput", finalChatInput);
-    response = await fetch(webhookUrl, { method: 'POST', body: formData });
-    batchFiles = [];
-} else {
+            // Jika pesan sesuai keyword, kirim dengan file
+            if (keyword && message.toLowerCase() === keyword) {
+                const formData = new FormData();
+                let locTags = "";
+                formData.append("sessionId", sessionId);
+                batchFiles.forEach((item, i) => {
+                    formData.append(`file_${i}`, item.file);
+                    if (item.label.includes("Batas")) {
+                        locTags += `[LOC: ${item.lat}, ${item.lng}] `;
+                    }
+                });
+                const finalChatInput = locTags ? `${message} ${locTags}`.trim() : message;
+                formData.append("chatInput", finalChatInput);
+                response = await fetch(webhookUrl, { method: 'POST', body: formData });
+                batchFiles = []; // Hapus file setelah terkirim
+            } else {
+                // Jika pesan tidak sesuai keyword, kirim hanya teks (file tetap disimpan)
+                response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chatInput: message, sessionId: sessionId }),
+                });
+                // Beri tahu bahwa file masih pending
+                addMessage("File masih tersimpan. Ketik **'KTP'** atau **'Patok'** untuk mengirim.", true);
+            }
+        } else {
+            // Tidak ada file, kirim teks biasa
             response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -374,7 +415,6 @@ if (batchFiles.length > 0) {
     } catch (error) {
         addMessage("Koneksi gagal.", true);
     } finally {
-        // Sembunyikan loading
         hideLoading();
     }
 }
