@@ -238,7 +238,9 @@ if (isAi) {
 
     // 2. Ubah markdown image ![alt](url) menjadi tag HTML
     formattedText = formattedText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width:150px; border-radius:8px;">');
-
+    // 2.5 Ubah URL biasa menjadi link aktif
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    formattedText = formattedText.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline">$1</a>');
     // 3. Ubah newline (\n) menjadi <br>
     formattedText = formattedText.replace(/\n/g, '<br>');
 
@@ -284,37 +286,43 @@ utterance.onend = () => {
     chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 }
 async function changeAvatar(fileName, loop = true) {
-    const video1 = document.getElementById('avatar-video-1');
-    const video2 = document.getElementById('avatar-video-2');
-    
-    // Tentukan video aktif dan berikutnya
-    const activeVideo = video1.style.opacity == '1' ? video1 : video2;
-    const nextVideo = activeVideo === video1 ? video2 : video1;
-    
-    // Set sumber dan loop
-    nextVideo.src = fileName;
-    nextVideo.loop = loop;
-    
-    // Tunggu sampai video siap dimainkan
-    if (nextVideo.readyState < 3) { // HAVE_FUTURE_DATA
-        await new Promise(resolve => {
-            nextVideo.addEventListener('canplaythrough', resolve, { once: true });
-        });
-    }
-    
-    // Putar video berikutnya
-    await nextVideo.play();
-    
-    // Lakukan transisi silang
-    activeVideo.style.opacity = '0';
-    nextVideo.style.opacity = '1';
-    
-    // Hentikan video yang tidak aktif setelah transisi
-    setTimeout(() => {
-        if (activeVideo.style.opacity == '0') {
-            activeVideo.pause();
+    try {
+        const video1 = document.getElementById('avatar-video-1');
+        const video2 = document.getElementById('avatar-video-2');
+        
+        // Tentukan video aktif berdasarkan opacity (gunakan parseFloat untuk akurasi)
+        const activeVideo = parseFloat(video1.style.opacity) > 0.5 ? video1 : video2;
+        const nextVideo = activeVideo === video1 ? video2 : video1;
+        
+        console.log(`changeAvatar: from ${activeVideo.id} to ${nextVideo.id} with file ${fileName}`);
+        
+        // Set sumber dan loop
+        nextVideo.src = fileName;
+        nextVideo.loop = loop;
+        
+        // Tunggu sampai video siap dimainkan
+        if (nextVideo.readyState < 3) { // HAVE_FUTURE_DATA
+            await new Promise(resolve => {
+                nextVideo.addEventListener('canplaythrough', resolve, { once: true });
+            });
         }
-    }, 300);
+        
+        // Putar video berikutnya
+        await nextVideo.play();
+        
+        // Lakukan transisi silang
+        activeVideo.style.opacity = '0';
+        nextVideo.style.opacity = '1';
+        
+        // Hentikan video yang tidak aktif setelah transisi
+        setTimeout(() => {
+            if (parseFloat(activeVideo.style.opacity) < 0.5) {
+                activeVideo.pause();
+            }
+        }, 300);
+    } catch (e) {
+        console.error('changeAvatar error:', e);
+    }
 }
         // --- 3. Feature Functions (Geotagging & Batch) ---
 async function previewFiles(input, label) {
@@ -406,6 +414,7 @@ async function sendMessage() {
 
     // Hentikan suara yang sedang berjalan
     window.speechSynthesis.cancel();
+    changeAvatar('diam.mp4', true).catch(e => console.log(e)); 
 
     // Tampilkan pesan user
     if (message) addMessage(message, false);
