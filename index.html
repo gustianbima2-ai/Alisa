@@ -48,7 +48,7 @@
             display: flex; justify-content: center; align-items: flex-end;
             pointer-events: none;
         }
-        #avatar-video { width: auto; height: 100%; object-fit: contain; mix-blend-mode: screen; opacity: 1; }
+        
         main { position: relative; z-index: 20; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .glass-bubble-ai {
@@ -61,6 +61,19 @@
         }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(62, 125, 72, 0.3); border-radius: 20px; }
+
+        .avatar-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    
+}.avatar-layer {
+    transition: opacity 0.2s ease-in-out;
+    will-change: opacity;
+}
     </style>
 </head>
 <body class="bg-[#F5F4F0] text-stone-800 font-display overflow-hidden h-screen flex flex-col relative">
@@ -72,11 +85,10 @@
         <div class="absolute inset-0 bg-gradient-to-r from-[#F5F4F0]/90 via-[#F5F4F0]/30 to-[#F5F4F0]/90"></div>
     </div>
 
-    <div class="video-container">
-        <video id="avatar-video" autoplay muted playsinline>
-            <source id="video-source" src="menyapa.mp4" type="video/mp4">
-        </video>
-    </div>
+<div class="video-container">
+    <video id="avatar-video-1" class="avatar-layer" autoplay muted playsinline preload="auto" style="opacity:1; transition:opacity 0.3s ease;"></video>
+    <video id="avatar-video-2" class="avatar-layer" autoplay muted playsinline preload="auto" style="opacity:0; transition:opacity 0.3s ease;"></video>
+</div>
 
     <header class="flex-none flex items-center justify-between px-8 py-5 z-20 relative border-b border-stone-200/50 bg-gradient-to-b from-white/80 to-transparent">
         <div class="flex items-center gap-4">
@@ -189,8 +201,6 @@
         const textarea = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
         const micBtn = document.getElementById('micBtn');
-        const avatarVideo = document.getElementById('avatar-video');
-        const videoSource = document.getElementById('video-source');
 
         // --- 2. UI Functions ---
         function toggleMenu() { document.getElementById('featureMenu').classList.toggle('hidden'); }
@@ -220,29 +230,42 @@ function addMessage(text, isAi = false) {
 
     const msgDiv = document.createElement('div');
 
-    if (isAi) {
-        msgDiv.className = 'flex flex-col gap-3 glass-bubble-ai p-5 rounded-2xl max-w-[85%] shadow-sm animate-fade-in-up';
+if (isAi) {
+    msgDiv.className = 'flex flex-col gap-3 glass-bubble-ai p-5 rounded-2xl max-w-[85%] shadow-sm animate-fade-in-up';
 
-        // 1. Ubah **teks** menjadi <strong>
-        let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // 1. Ubah **teks** menjadi <strong>
+    let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-        // 2. Ubah URL menjadi link aktif
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        formattedText = formattedText.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline">$1</a>');
+    // 2. Ubah markdown image ![alt](url) menjadi tag HTML
+    formattedText = formattedText.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width:150px; border-radius:8px;">');
 
-        // 3. Ubah newline (\n) menjadi <br>
-        formattedText = formattedText.replace(/\n/g, '<br>');
+    // 3. Ubah newline (\n) menjadi <br>
+    formattedText = formattedText.replace(/\n/g, '<br>');
 
-        msgDiv.innerHTML = `<div class="text-sm leading-relaxed text-stone-800">${formattedText}</div>`;
+    // 4. Tampilkan di chat
+    msgDiv.innerHTML = `<div class="text-sm leading-relaxed text-stone-800">${formattedText}</div>`;
 
-        // Voice AI
-        window.speechSynthesis.cancel();
-        const cleanText = text.replace(/\*\*/g, '').replace(/<[^>]*>/g, '');
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'id-ID';
-        utterance.onstart = () => changeAvatar('menjawab.mp4', true);
-        utterance.onend = () => changeAvatar('diam.mp4', true);
-        window.speechSynthesis.speak(utterance);
+    // --- Voice AI (TTS) ---
+    window.speechSynthesis.cancel();
+
+    // Bersihkan teks asli dari hal-hal yang tidak perlu dibaca
+    let cleanText = text
+        .replace(/\*\*/g, '')                     // hapus **
+        .replace(/<[^>]*>/g, '')                  // hapus tag HTML
+        .replace(/#/g, '')                         // hapus #
+        .replace(/!\[.*?\]\(.*?\)/g, ' foto ')     // ganti markdown gambar dengan " foto "
+        .replace(/https?:\/\/[^\s]+/g, '');        // hapus semua URL
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'id-ID';
+utterance.onstart = () => {
+    changeAvatar('menjawab.mp4', true).catch(e => console.log(e));
+};
+utterance.onend = () => {
+    changeAvatar('diam.mp4', true).catch(e => console.log(e));
+};
+    window.speechSynthesis.speak(utterance);
+    
     } else {
         // USER
         if (text.includes('<div')) {
@@ -260,15 +283,39 @@ function addMessage(text, isAi = false) {
     chatContainer.appendChild(wrapper);
     chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 }
-        function changeAvatar(fileName, loop = true) {
-            if (!videoSource.src.includes(fileName)) {
-                videoSource.src = fileName;
-                avatarVideo.load();
-                avatarVideo.loop = loop;
-                avatarVideo.play();
-            }
+async function changeAvatar(fileName, loop = true) {
+    const video1 = document.getElementById('avatar-video-1');
+    const video2 = document.getElementById('avatar-video-2');
+    
+    // Tentukan video aktif dan berikutnya
+    const activeVideo = video1.style.opacity == '1' ? video1 : video2;
+    const nextVideo = activeVideo === video1 ? video2 : video1;
+    
+    // Set sumber dan loop
+    nextVideo.src = fileName;
+    nextVideo.loop = loop;
+    
+    // Tunggu sampai video siap dimainkan
+    if (nextVideo.readyState < 3) { // HAVE_FUTURE_DATA
+        await new Promise(resolve => {
+            nextVideo.addEventListener('canplaythrough', resolve, { once: true });
+        });
+    }
+    
+    // Putar video berikutnya
+    await nextVideo.play();
+    
+    // Lakukan transisi silang
+    activeVideo.style.opacity = '0';
+    nextVideo.style.opacity = '1';
+    
+    // Hentikan video yang tidak aktif setelah transisi
+    setTimeout(() => {
+        if (activeVideo.style.opacity == '0') {
+            activeVideo.pause();
         }
-
+    }, 300);
+}
         // --- 3. Feature Functions (Geotagging & Batch) ---
 async function previewFiles(input, label) {
     const files = Array.from(input.files);
@@ -364,7 +411,7 @@ async function sendMessage() {
     if (message) addMessage(message, false);
     textarea.value = '';
     textarea.style.height = '52px';
-    changeAvatar('diam.mp4', true);
+
 
     // Tampilkan loading
     showLoading();
@@ -439,11 +486,32 @@ async function sendMessage() {
         sendBtn.onclick = sendMessage;
         textarea.onkeypress = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
         
-        window.onload = () => {
-            changeAvatar('menyapa.mp4', false);
-            avatarVideo.onended = () => { if (videoSource.src.includes('menyapa.mp4')) changeAvatar('diam.mp4', true); };
-        };
-
+window.onload = () => {
+    // Preload semua video yang mungkin digunakan
+    ['menyapa.mp4', 'diam.mp4', 'menjawab.mp4'].forEach(src => {
+        const vid = document.createElement('video');
+        vid.src = src;
+        vid.preload = 'auto';
+        vid.style.display = 'none';
+        document.body.appendChild(vid);
+    });
+    
+    const video1 = document.getElementById('avatar-video-1');
+    const video2 = document.getElementById('avatar-video-2');
+    
+    video1.src = 'menyapa.mp4';
+    video1.loop = false;
+    video1.style.opacity = '1';
+    video1.play().catch(e => console.log(e));
+    
+    video2.src = 'diam.mp4';
+    video2.loop = true;
+    video2.style.opacity = '0';
+    
+    video1.onended = () => {
+        changeAvatar('diam.mp4', true);
+    };
+};
         // --- 6. Admin Logic ---
         function openLogin() { document.getElementById('loginOverlay').classList.remove('hidden'); }
         function closeLogin() { document.getElementById('loginOverlay').classList.add('hidden'); }
